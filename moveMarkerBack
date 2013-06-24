@@ -1,0 +1,7 @@
+#!/bin/bash
+# moves the current episode marker backwards
+ID=$(ls | awk -F_ '/^_.*/ { print $2}')
+if [ "x${ID}" != "x" ]; then
+    NID=$((ID - 1))
+    mv "_$ID" "_$NID"
+fi

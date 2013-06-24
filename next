@@ -1,0 +1,19 @@
+#!/bin/bash
+set -x
+
+# plays the next episode of a series according to the _$ID marker
+
+ID=$(ls | awk -F_ '/^_.*/ { print $2}')
+if [ "x${ID}" = "x" ]; then
+    ID="0"
+fi
+
+ID=$((ID + 1))
+
+EXPR="^.*([0-9]{1,2}[ex]|[_ \.-]|[\.]EP|episode)+0*${ID}([^0-9xeE]+.*\.|\.)(avi|mkv|mpeg|OGM)$"
+EP="$(ls | egrep -i "$EXPR" | head -n1)"
+if [ "x${EP}" = "x" ]; then
+    echo "no episode found"
+    exit 1
+fi
+mplayer "${EP}" && moveMarker

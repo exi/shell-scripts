@@ -1,0 +1,9 @@
+#!/bin/bash
+# moves the current episode marker forward
+ID=$(ls | awk -F_ '/^_.*/ { print $2}')
+if [ "x${ID}" = "x" ]; then
+    touch _1
+else
+    NID=$((ID + 1))
+    mv "_$ID" "_$NID"
+fi
