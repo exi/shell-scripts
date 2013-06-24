@@ -1,5 +1,5 @@
 #!/bin/bash
-#creates a new github phprojekt pull request for the current branch
+# creates a new github phprojekt pull request for the current branch
 
 BRANCH=$(git symbolic-ref HEAD 2>/dev/null)
 if [ "${BRANCH}" != "" ]; then
