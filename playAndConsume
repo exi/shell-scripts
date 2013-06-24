@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# plays a playlist with mplayer and consumes the played file from the top
+# default playlist name is "playlist"
+#
+# usage:
+# playAndConsume -p <pathToPlaylist>
+
+PLAYLIST="./playlist"
+while getopts "p:" opt; do
+  case $opt in
+    p)
+      PLAYLIST=$OPTARG
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      ;;
+  esac
+done
+
+echo "using $PLAYLIST"
+
+if [ ! -f "$PLAYLIST" ]; then
+    echo "file $PLAYLIST not found"
+    exit 1
+fi
+
+if [ $(cat "$PLAYLIST" | wc -l) -eq 0 ]; then
+    echo "playlist empty"
+    exit 0
+fi
+
+FILE=$(head -n1 "$PLAYLIST")
+QUIT=$(LC_ALL=C mplayer "$FILE" | tee /dev/stderr | grep 'Exiting... (Quit)' | wc -l)
+RET=$?
+
+if [ $RET -eq 0 -a $QUIT -eq 0 ]; then
+    echo "consume"
+    TEMP=$(mktemp)
+    sed 1d "$PLAYLIST" > "$TEMP"
+    mv "$TEMP" "$PLAYLIST"
+    exec /usr/bin/bash $0 -p "$PLAYLIST"
+else
+    echo "quit"
+    exit 1
+fi
