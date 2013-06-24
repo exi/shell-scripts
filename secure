@@ -1,0 +1,61 @@
+#!/bin/bash
+set -x
+
+# this scripts builds an ssh based vpn with udp forwarding using badvpn according
+# to use it, create a symlink to this script in the form of:
+# secure.<hostname>
+# for example
+# secure.wthack.de
+#
+# this will connect to wthack.de and tries to start badvpn-udpgw on the remove side
+# i assume that badvpn is in the PATH on both machines for this to work
+
+SCRIPTNAME="$(basename "${0}")"
+ENDPOINT="$(echo "${SCRIPTNAME}" | sed -e 's/[^\.]\+\.\(.*\)/\1/g')"
+
+if [ "${ENDPOINT}" = "secure" ]; then
+    echo "no endpoint given"
+    exit 0
+fi
+
+ENDPOINTIP="$(host ${ENDPOINT} | awk '/.* has address / { print $4 }')"
+EXCLUDED=("${ENDPOINTIP}")
+IF="wlp3s0"
+DNS="8.8.8.8"
+
+DEFAULTROUTE="$(ip -o r s dev ${IF} | grep default | awk '{ print $3; }')"
+
+cat <<EOF | ssh -D 1234 ${ENDPOINT} '/bin/bash -' &
+set -x
+[ -f "$HOME/.bashrc" ] && . $HOME/.bashrc
+killall badvpn-udpgw
+badvpn-udpgw --listen-addr 127.0.0.1:7300 --loglevel warning
+EOF
+
+SSHPID=$!
+sleep 10
+
+sudo ip tuntap add dev tun0 mode tun user exi || exit 1
+sudo ip link set dev tun0 up || exit 1
+sudo ip a a dev tun0 local 10.0.0.1/24 scope global || exit 1
+
+for r in "${EXCLUDED[@]}"; do
+    sudo ip r a via ${DEFAULTROUTE} to ${r} metric 5
+done
+
+sudo ip r d via ${DEFAULTROUTE} to default dev ${IF}
+sudo ip r a via 10.0.0.2 to default metric 10 || exit 1
+
+echo "nameserver $DNS" | sudo resolvconf -a ${IF}
+
+badvpn-tun2socks --tundev tun0 --netif-ipaddr 10.0.0.2 --netif-netmask 255.255.255.0 --socks-server-addr 127.0.0.1:1234 --udpgw-remote-server-addr 127.0.0.1:7300 --loglevel warning
+
+kill ${SSHPID}
+sudo ip r d via 10.0.0.2 to default dev tun0
+sudo ip r a via ${DEFAULTROUTE} to default
+
+for r in "${EXCLUDED[@]}"; do
+    sudo ip r d via ${DEFAULTROUTE} to ${r} metric 5
+done
+
+sudo ip tuntap del dev tun0 mode tun
