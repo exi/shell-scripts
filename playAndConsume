@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# plays a playlist with mplayer and consumes the played file from the top
+# plays a playlist with mpv and consumes the played file from the top
 # default playlist name is "playlist"
 #
 # usage:
@@ -32,7 +32,7 @@ if [ $(cat "$PLAYLIST" | wc -l) -eq 0 ]; then
 fi
 
 FILE=$(head -n1 "$PLAYLIST")
-QUIT=$(LC_ALL=C mplayer "$FILE" | tee /dev/stderr | grep 'Exiting... (Quit)' | wc -l)
+QUIT=$(LC_ALL=C mpv "$FILE" | tee /dev/stderr | grep 'Exiting... (Quit)' | wc -l)
 RET=$?
 
 if [ $RET -eq 0 -a $QUIT -eq 0 ]; then

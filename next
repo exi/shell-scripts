@@ -16,4 +16,4 @@ if [ "x${EP}" = "x" ]; then
     echo "no episode found"
     exit 1
 fi
-mplayer "${EP}" && moveMarker
+mpv "${EP}" && moveMarker
