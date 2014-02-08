@@ -1,19 +1,56 @@
-#!/bin/bash
-set -x
+#!/usr/bin/python3 -u
 
-# plays the next episode of a series according to the _$ID marker
+import sys
+import re
+import subprocess
+from os import execv
+from os import listdir
+from os.path import isfile, join
 
-ID=$(ls | awk -F_ '/^_.*/ { print $2}')
-if [ "x${ID}" = "x" ]; then
-    ID="0"
-fi
+index = 0
 
-ID=$((ID + 1))
+try:
+    indexfile = [ f for f in listdir("./") if isfile(join("./", f)) and f[0] == '_'].pop(0)
+    index = int(indexfile.lstrip('_'))
+except IndexError as e:
+    close(open('_0'))
 
-EXPR="^.*([0-9]{1,2}[ex]|[_ \.-]|[\.]EP|episode)+0*${ID}([^0-9xeE]+.*\.|\.)(avi|mkv|mpeg|OGM)$"
-EP="$(ls | egrep -i "$EXPR" | head -n1)"
-if [ "x${EP}" = "x" ]; then
-    echo "no episode found"
-    exit 1
-fi
-mpv "${EP}" && moveMarker
+index += 1
+
+movieRegex = '^.*([0-9]{1,2}[ex]|[_ \.-]|[\.]EP|episode)+0*' + str(index) + '([^0-9xeE]+.*\.|\.)(avi|mkv|mpeg|OGM)$'
+
+movie = None
+try:
+    movie = [ f for f in listdir("./") if isfile(join("./", f)) and re.match(movieRegex, f, flags=re.IGNORECASE)].pop(0)
+except:
+    print("movie with index " + str(index) + " not found")
+    sys.exit(1)
+
+# proc = subprocess.Popen('script -q /dev/stdout -c "mpv \\"' + movie + '\\" ' + " ".join(sys.argv) + '"', shell=True, stderr=subprocess.PIPE, stdout=None, universal_newlines=True)
+proc = subprocess.Popen('mpv "' + movie + '" ' + " ".join(sys.argv), shell=True, stderr=subprocess.PIPE, stdout=None)
+
+timeRegex = "(\d\d):(\d\d):(\d\d)\s\/\s(\d\d):(\d\d):(\d\d)"
+
+err = ""
+current = 0
+total = 1
+while True:
+    err = proc.stderr.read(100).decode('utf-8')
+    times = re.findall(timeRegex, err)
+    if len(times) > 0:
+        lastTimes = times.pop()
+        [chr, cmin, csec, thr, tmin, tsec] = map(lambda x: int(x), lastTimes)
+        current = csec + cmin * 60 + chr * 60 * 60
+        total = tsec + tmin * 60 + thr * 60 * 60
+    sys.stderr.write(err)
+    if proc.poll() != None:
+        break
+
+percent = (100 / total) * current
+print("played " + str(percent) + "% of the movie")
+
+if percent > 70:
+    print("moving marker")
+    subprocess.check_output("moveMarker", shell=True)
+else:
+    print("not moving marker")
