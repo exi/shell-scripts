@@ -1,0 +1,6 @@
+#!/bin/bash
+DAREWALLURL="$1"
+
+IFRAME="$(wget -O- "$1" | grep "IFRAME" - | grep "www.gorillavid.in" | sed -e 's/.*http:\/\/\(www.gorillavid.in.*\.html\).*/\1/g' | head -n1)"
+FILE="$(wget -O- "$IFRAME" | grep "file:" | grep "\.flv" | perl -pe 's|.*file:"(http://[a-zA-Z0-9:./]*?video.flv).*|___\1___|g' | awk -F___ '{print $2}' | grep "video.flv")"
+echo "$FILE"

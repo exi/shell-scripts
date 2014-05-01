@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+getvidpaid $1 | mpv -cache 10000 -playlist -

@@ -1,0 +1,5 @@
+#!/bin/bash
+nohup firefox &
+nohup konsole -e "con_wthack" &
+nohup thunderbird &
+nohup pidgin &

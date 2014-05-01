@@ -1,0 +1,53 @@
+#!/usr/bin/env php
+<?php
+ini_set('error_reporting', E_ALL ^ E_WARNING);
+
+if ($argc < 2) {
+    die ('need arguments\n');
+}
+
+function preprocessUrl($url) {
+    if (1 === preg_match('@.*watchseries\.lt/episode.*\.html@', $url)) {
+        $providerSelectPage = file_get_contents($url);
+        if (0 === preg_match('@.*href="([^"]+)" class="buttonlink" title=vidpaid.*@', $providerSelectPage, $matches)) {
+            die("failed to load provider select page or page not containing vidpaid link");
+        }
+        $redirectorUrl = 'http://watchseries.lt/' . $matches[1];
+        $redirectorPage = file_get_contents($redirectorUrl);
+        if (0 === preg_match('@.*"(http://vidpaid.com/[^"]+)".*@', $redirectorPage, $matches)) {
+            die("failed to load redirector page or page not containing vidpaid link");
+        }
+        $url = $matches[1];
+    }
+    return $url;
+}
+
+$url = preprocessUrl($argv[1]);
+$landingPage = file_get_contents($url);
+
+$doc = new DOMDocument();
+$doc->loadHTML($landingPage);
+
+$forms = $doc->getElementsByTagName('form');
+$form = $forms->item(0);
+$inputs = $form->childNodes;
+$values = array();
+
+foreach ($inputs as $input) {
+    if ('input' === $input->nodeName) {
+        $values[$input->attributes->getNamedItem('name')->value] = $input->attributes->getNamedItem('value')->value;
+    }
+}
+
+$options = array(
+    'http' => array(
+        'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+        'method'  => 'POST',
+        'content' => http_build_query($values),
+    ),
+);
+$context  = stream_context_create($options);
+$result = file_get_contents($url, false, $context);
+preg_match('@file: "(http://[^\n]+\.mp4)"@', $result, $matches);
+echo $matches[1] . "\n";
+?>
